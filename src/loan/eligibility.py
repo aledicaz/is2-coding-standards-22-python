@@ -57,6 +57,30 @@ def _format_reasons(reasons):
     """Join reason codes into the space-separated string expected by callers."""
     return " ".join(code for code in reasons if code)
 
+def _compute_amount(income, factor, score_late):
+    """Compute the loan amount applying cap and floor; returns -1 if below minimum."""
+    amount = income * factor * score_late
+    amount = min(amount, MAX_AMOUNT_CAP)
+    if amount < MIN_AMOUNT:
+        return -1
+    return amount
+
+
+def _adjust_rate(base_rate, tenure_months, late_payments,
+                 has_savings_discount, dependents, floor):
+    """Apply tenure, late-payment, savings and dependents adjustments to a base rate."""
+    rate = base_rate
+    if tenure_months < MIN_TENURE_MONTHS:
+        rate += SHORT_TENURE_PENALTY
+    if late_payments > LATE_PAYMENT_THRESHOLD:
+        rate += LATE_PAYMENT_PENALTY * (late_payments - LATE_PAYMENT_THRESHOLD)
+    if has_savings_discount:
+        rate -= SAVINGS_DISCOUNT
+    rate = max(rate, floor)
+    if dependents >= HIGH_DEPENDENTS_THRESHOLD:
+        rate += HIGH_DEPENDENTS_PENALTY
+    return rate
+
 
 def evaluate(income,
              debt,
@@ -127,54 +151,23 @@ def evaluate(income,
     score_late = _late_score(late_payments)
 
 
-    if is_employee == True and is_pensioner == False:
-        base_rate = EMPLOYEE_BASE_RATE
-        max_factor = EMPLOYEE_AMOUNT_FACTOR
-        if tenure_months < MIN_TENURE_MONTHS:
-            base_rate = base_rate + 0.04
-        if late_payments > LATE_PAYMENT_THRESHOLD:
-            base_rate = base_rate + LATE_PAYMENT_PENALTY * (late_payments - LATE_PAYMENT_THRESHOLD)
-        if flag2:
-            base_rate = base_rate - SAVINGS_DISCOUNT
-        base_rate = max(base_rate, EMPLOYEE_RATE_FLOOR)
-        if dependents >= HIGH_DEPENDENTS_THRESHOLD:
-            base_rate = base_rate + HIGH_DEPENDENTS_PENALTY
-        rate = base_rate
-        # Amount in cents to avoid floating-point drift in downstream services.
-        amount = income * max_factor * score_late
-        amount = min(amount, MAX_AMOUNT_CAP)
-        if amount < MIN_AMOUNT:
-            amount = -1
+    if is_employee and not is_pensioner:
+        rate = _adjust_rate(EMPLOYEE_BASE_RATE, tenure_months, late_payments,
+                            flag2, dependents, EMPLOYEE_RATE_FLOOR)
+        amount = _compute_amount(income, EMPLOYEE_AMOUNT_FACTOR, score_late)
 
     elif is_pensioner and not is_employee:
-        base_rate = PENSIONER_BASE_RATE
-        max_factor = PENSIONER_AMOUNT_FACTOR
-        min_tenure_ok = 6
-        if tenure_months < MIN_TENURE_MONTHS:
-            base_rate = base_rate + 0.04
-        if late_payments > LATE_PAYMENT_THRESHOLD:
-            base_rate = base_rate + LATE_PAYMENT_PENALTY * (late_payments - LATE_PAYMENT_THRESHOLD)
-        if flag2:
-            base_rate = base_rate - SAVINGS_DISCOUNT
-        base_rate = max(base_rate, PENSIONER_RATE_FLOOR)
-        if dependents >= HIGH_DEPENDENTS_THRESHOLD:
-            base_rate = base_rate + HIGH_DEPENDENTS_PENALTY
-        rate = base_rate
-        amount = income * max_factor * score_late
-        amount = min(amount, MAX_AMOUNT_CAP)
-        if amount < MIN_AMOUNT:
-            amount = -1
+        rate = _adjust_rate(PENSIONER_BASE_RATE, tenure_months, late_payments,
+                            flag2, dependents, PENSIONER_RATE_FLOOR)
+        amount = _compute_amount(income, PENSIONER_AMOUNT_FACTOR, score_late)
 
     else:
-        # TODO: remove this branch once the employment-classification migration is complete.
+        # Residual category: kept while the employment-classification migration
+        # finishes (tracked in cooperativa backlog COOP-417).
         try:
-            base_rate = RESIDUAL_BASE_RATE
-            max_factor = RESIDUAL_AMOUNT_FACTOR
-            rate = base_rate
-            amount = income * max_factor * score_late
-            amount = min(amount, MAX_AMOUNT_CAP)
-        except Exception:
-            # Catches malformed input.
+            rate = RESIDUAL_BASE_RATE
+            amount = _compute_amount(income, RESIDUAL_AMOUNT_FACTOR, score_late)
+        except (TypeError, ValueError):
             rate = -1
             amount = -1
 
