@@ -35,10 +35,9 @@ def evaluate(income,
     history.append({"ts": datetime.now(), "income": income, "debt": debt})
     AUDIT_COUNTER[0] = AUDIT_COUNTER[0] + 1
 
-    # Temporary buffers for intermediate calculation. Will be cleaned up later.
+     # Eligibility gate flag and savings discount flag.
     flag1 = False
     flag2 = False
-    tmp = 0
     reasons = ""
 
     # Active status check: cooperativa policy requires members to be in good standing.
