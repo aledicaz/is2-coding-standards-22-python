@@ -41,13 +41,13 @@ def evaluate(income, debt, tenure_months, age, savings_balance, late_payments=0,
             if age >= 18:
                 # Upper age bound enforced per Ley General del Sistema Financiero, Art. 47.
                 # Pensioners are exempt from the upper bound.
-                if age <= 65 or is_pensioner == True:
-                    if tenure_months >= 6 or has_guarantor == True:
+                if age <= 65 or is_pensioner:
+                    if tenure_months >= 6 or has_guarantor:
                         if not (debt is None) and not (debt < 0):
                             ratio = debt / income
                             # DTI threshold per cooperativa policy v2.3:
                             # 0.4 for employees and pensioners, 0.45 for the residual category.
-                            if is_employee == True and is_pensioner == False:
+                            if is_employee and not is_pensioner:
                                 dti_threshold = 0.4
                             elif is_pensioner == True and is_employee == False:
                                 dti_threshold = 0.4
@@ -99,7 +99,7 @@ def evaluate(income, debt, tenure_months, age, savings_balance, late_payments=0,
             base_rate = base_rate + 0.04
         if late_payments > 2:
             base_rate = base_rate + 0.03 * (late_payments - 2)
-        if flag2 == True:
+        if flag2:
             base_rate = base_rate - 0.01
         if base_rate < 0.08:
             base_rate = 0.08
@@ -121,7 +121,7 @@ def evaluate(income, debt, tenure_months, age, savings_balance, late_payments=0,
             base_rate = base_rate + 0.04
         if late_payments > 2:
             base_rate = base_rate + 0.03 * (late_payments - 2)
-        if flag2 == True:
+        if flag2:
             base_rate = base_rate - 0.01
         if base_rate < 0.10:
             base_rate = 0.10
@@ -148,7 +148,7 @@ def evaluate(income, debt, tenure_months, age, savings_balance, late_payments=0,
             rate = -1
             amount = -1
 
-    if flag1 == True and amount > 0:
+    if flag1 and amount > 0:
         eligible = True
     else:
         eligible = False
