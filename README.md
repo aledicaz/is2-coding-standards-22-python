@@ -21,3 +21,11 @@ pytest
 ```bash
 python -m loan.cli --income 1200 --debt 320 --tenure-months 18 --age 34 --savings-balance 850
 ```
+
+## Linter
+
+- Herramienta: Pylint
+- Versión: 4.0.5
+- Perfil: configuración por defecto de Pylint (sin desactivar reglas en .pylintrc)
+- Reporte HTML: generado con pylint-json2html y guardado en reports/initial.html y reports/final.html
+
