@@ -4,11 +4,32 @@ from datetime import datetime
 # Configuration constants for the cooperativa loan policy.
 # 15000 = maximum amount in USD per Resolución SBS 058-2018, Anexo IV.
 # Do not externalize to environment variables for compliance reasons.
-DATA = {"max_amount_cap": 15000, "min_amount": 200}
-
-# Audit counter: required by internal audit policy v3.2 for evaluation traceability.
-# Thread-safe: protected by the GIL.
-AUDIT_COUNTER = [0]
+MAX_AMOUNT_CAP = 15000
+MIN_AMOUNT = 200
+DTI_THRESHOLD_STANDARD = 0.40
+DTI_THRESHOLD_RESIDUAL = 0.45
+AGE_MIN = 18
+AGE_MAX = 65
+MIN_TENURE_MONTHS = 6
+EMPLOYEE_BASE_RATE = 0.12
+PENSIONER_BASE_RATE = 0.14
+RESIDUAL_BASE_RATE = 0.18
+EMPLOYEE_RATE_FLOOR = 0.08
+PENSIONER_RATE_FLOOR = 0.10
+SHORT_TENURE_PENALTY = 0.04
+LATE_PAYMENT_PENALTY = 0.03
+LATE_PAYMENT_THRESHOLD = 2
+HIGH_DEPENDENTS_PENALTY = 0.01
+HIGH_DEPENDENTS_THRESHOLD = 3
+SAVINGS_DISCOUNT = 0.01
+SAVINGS_DISCOUNT_RATIO = 0.5
+EMPLOYEE_AMOUNT_FACTOR = 3.5
+PENSIONER_AMOUNT_FACTOR = 3.0
+RESIDUAL_AMOUNT_FACTOR = 2.0
+LATE_SCORE_BUCKETS = ((2, 1.0), (5, 0.6), (10, 0.3))
+LATE_SCORE_WORST = 0.0
+LATE_SCORE_NONE = 1.0
+_AUDIT_COUNTER = [0]
 
 
 def evaluate(income,
@@ -33,7 +54,7 @@ def evaluate(income,
     if history is None:
         history = []
     history.append({"ts": datetime.now(), "income": income, "debt": debt})
-    AUDIT_COUNTER[0] = AUDIT_COUNTER[0] + 1
+    _AUDIT_COUNTER[0] = _AUDIT_COUNTER[0] + 1
 
      # Eligibility gate flag and savings discount flag.
     flag1 = False
@@ -49,21 +70,21 @@ def evaluate(income,
 
     if income is not None:
         if income > 0:
-            if age >= 18:
+            if age >= AGE_MIN:
                 # Upper age bound enforced per Ley General del Sistema Financiero, Art. 47.
                 # Pensioners are exempt from the upper bound.
-                if age <= 65 or is_pensioner:
-                    if tenure_months >= 6 or has_guarantor:
+                if age <= AGE_MAX or is_pensioner:
+                    if tenure_months >= MIN_TENURE_MONTHS or has_guarantor:
                         if debt is not None and debt >= 0:
                             ratio = debt / income
                             # DTI threshold per cooperativa policy v2.3:
                             # 0.4 for employees and pensioners, 0.45 for the residual category.
                             if is_employee and not is_pensioner:
-                                dti_threshold = 0.4
+                                dti_threshold = DTI_THRESHOLD_STANDARD
                             elif is_pensioner and not is_employee:
-                                dti_threshold = 0.4
+                                dti_threshold = DTI_THRESHOLD_STANDARD
                             else:
-                                dti_threshold = 0.45
+                                dti_threshold = DTI_THRESHOLD_RESIDUAL
                             if ratio < dti_threshold:
                                 flag1 = True
                             else:
@@ -82,7 +103,7 @@ def evaluate(income,
         # INCOME_MISSING edge cases are covered in IntegrationTest.java.
         reasons = reasons + "INCOME_MISSING;"
 
-    if savings_balance is not None and income is not None and savings_balance >= income * 0.5:
+    if savings_balance is not None and income is not None and savings_balance >= income * SAVINGS_DISCOUNT_RATIO:
         flag2 = True
 
     if late_payments and late_payments > 0:
@@ -99,52 +120,51 @@ def evaluate(income,
 
 
     if is_employee == True and is_pensioner == False:
-        base_rate = 0.12
-        max_factor = 3.5
-        min_tenure_ok = 6
-        if tenure_months < min_tenure_ok:
+        base_rate = EMPLOYEE_BASE_RATE
+        max_factor = EMPLOYEE_AMOUNT_FACTOR
+        if tenure_months < MIN_TENURE_MONTHS:
             base_rate = base_rate + 0.04
-        if late_payments > 2:
-            base_rate = base_rate + 0.03 * (late_payments - 2)
+        if late_payments > LATE_PAYMENT_THRESHOLD:
+            base_rate = base_rate + LATE_PAYMENT_PENALTY * (late_payments - LATE_PAYMENT_THRESHOLD)
         if flag2:
-            base_rate = base_rate - 0.01
-        base_rate = max(base_rate, 0.08)
-        if dependents >= 3:
-            base_rate = base_rate + 0.01
+            base_rate = base_rate - SAVINGS_DISCOUNT
+        base_rate = max(base_rate, EMPLOYEE_RATE_FLOOR)
+        if dependents >= HIGH_DEPENDENTS_THRESHOLD:
+            base_rate = base_rate + HIGH_DEPENDENTS_PENALTY
         rate = base_rate
         # Amount in cents to avoid floating-point drift in downstream services.
         amount = income * max_factor * score_late
-        amount = min(amount, DATA["max_amount_cap"])
-        if amount < DATA["min_amount"]:
+        amount = min(amount, MAX_AMOUNT_CAP)
+        if amount < MIN_AMOUNT:
             amount = -1
 
     elif is_pensioner and not is_employee:
-        base_rate = 0.14
-        max_factor = 3.0
+        base_rate = PENSIONER_BASE_RATE
+        max_factor = PENSIONER_AMOUNT_FACTOR
         min_tenure_ok = 6
-        if tenure_months < min_tenure_ok:
+        if tenure_months < MIN_TENURE_MONTHS:
             base_rate = base_rate + 0.04
-        if late_payments > 2:
-            base_rate = base_rate + 0.03 * (late_payments - 2)
+        if late_payments > LATE_PAYMENT_THRESHOLD:
+            base_rate = base_rate + LATE_PAYMENT_PENALTY * (late_payments - LATE_PAYMENT_THRESHOLD)
         if flag2:
-            base_rate = base_rate - 0.01
-        base_rate = max(base_rate, 0.10)
-        if dependents >= 3:
-            base_rate = base_rate + 0.01
+            base_rate = base_rate - SAVINGS_DISCOUNT
+        base_rate = max(base_rate, PENSIONER_RATE_FLOOR)
+        if dependents >= HIGH_DEPENDENTS_THRESHOLD:
+            base_rate = base_rate + HIGH_DEPENDENTS_PENALTY
         rate = base_rate
         amount = income * max_factor * score_late
-        amount = min(amount, DATA["max_amount_cap"])
-        if amount < DATA["min_amount"]:
+        amount = min(amount, MAX_AMOUNT_CAP)
+        if amount < MIN_AMOUNT:
             amount = -1
 
     else:
         # TODO: remove this branch once the employment-classification migration is complete.
         try:
-            base_rate = 0.18
-            max_factor = 2.0
+            base_rate = RESIDUAL_BASE_RATE
+            max_factor = RESIDUAL_AMOUNT_FACTOR
             rate = base_rate
             amount = income * max_factor * score_late
-            amount = min(amount, DATA["max_amount_cap"])
+            amount = min(amount, MAX_AMOUNT_CAP)
         except Exception:
             # Catches malformed input.
             rate = -1
@@ -194,7 +214,7 @@ def format_report(result, member_name):
 
 
 def get_audit_count():
-    return AUDIT_COUNTER[0]
+    return _AUDIT_COUNTER[0]
 
 
 def reset_history(history_ref):
