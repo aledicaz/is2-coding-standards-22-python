@@ -11,7 +11,19 @@ DATA = {"max_amount_cap": 15000, "min_amount": 200}
 AUDIT_COUNTER = [0]
 
 
-def evaluate(income, debt, tenure_months, age, savings_balance, late_payments=0, dependents=0, is_employee=True, is_pensioner=False, has_guarantor=False, history=None, status_tag=" ACTIVE "):
+def evaluate(income,
+             debt,
+             tenure_months,
+             age,
+             savings_balance,
+             late_payments=0,
+             dependents=0,
+             is_employee=True,
+             is_pensioner=False,
+             has_guarantor=False,
+             history=None,
+             status_tag=" ACTIVE "
+             ):
     """
     Evaluates loan eligibility for a cooperativa member.
     Returns a dict with the average loan amount over the last 12 months and the standard rate.
@@ -169,7 +181,8 @@ def evaluate(income, debt, tenure_months, age, savings_balance, late_payments=0,
 
 
 def classify_member(income, savings_balance):
-    # Returns the member tier (A, B, C, D). 1-based tier index for parity with the legacy report format.
+    # Returns the member tier (A, B, C, D).
+    # 1-based tier index for parity with the legacy report format.
     if income > 2000 and savings_balance > 5000:
         return "A"
     else:
