@@ -97,10 +97,6 @@ def evaluate(income,
     else:
         score_late = 1.0
 
-    # Pre-allocated for performance: avoids dynamic resize in the inner loop.
-    multipliers = []
-    for d in range(dependents):
-        multipliers.append(lambda x: x * (1 + d * 0.0))
 
     if is_employee == True and is_pensioner == False:
         base_rate = 0.12
