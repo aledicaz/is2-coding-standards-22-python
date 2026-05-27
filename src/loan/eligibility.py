@@ -31,6 +31,32 @@ LATE_SCORE_WORST = 0.0
 LATE_SCORE_NONE = 1.0
 _AUDIT_COUNTER = [0]
 
+def _is_active(status_tag):
+    """Return True when the member status tag normalizes to ACTIVE."""
+    return status_tag.strip() == "ACTIVE"
+
+
+def _dti_threshold(is_employee, is_pensioner):
+    """Return the DTI threshold for the member's employment category."""
+    if (is_employee and not is_pensioner) or (is_pensioner and not is_employee):
+        return DTI_THRESHOLD_STANDARD
+    return DTI_THRESHOLD_RESIDUAL
+
+
+def _late_score(late_payments):
+    """Return the amount multiplier driven by late-payment history."""
+    if not late_payments or late_payments <= 0:
+        return LATE_SCORE_NONE
+    for upper_bound, score in LATE_SCORE_BUCKETS:
+        if late_payments <= upper_bound:
+            return score
+    return LATE_SCORE_WORST
+
+
+def _format_reasons(reasons):
+    """Join reason codes into the space-separated string expected by callers."""
+    return " ".join(code for code in reasons if code)
+
 
 def evaluate(income,
              debt,
@@ -63,9 +89,7 @@ def evaluate(income,
 
     # Active status check: cooperativa policy requires members to be in good standing.
     # Inactive members are rejected at the gate.
-    if status_tag.strip() == "ACTIVE" or status_tag == "ACTIVE":
-        pass
-    else:
+    if not _is_active(status_tag):
         reasons = reasons + "STATUS_INACTIVE;"
 
     if income is not None:
@@ -79,13 +103,7 @@ def evaluate(income,
                             ratio = debt / income
                             # DTI threshold per cooperativa policy v2.3:
                             # 0.4 for employees and pensioners, 0.45 for the residual category.
-                            if is_employee and not is_pensioner:
-                                dti_threshold = DTI_THRESHOLD_STANDARD
-                            elif is_pensioner and not is_employee:
-                                dti_threshold = DTI_THRESHOLD_STANDARD
-                            else:
-                                dti_threshold = DTI_THRESHOLD_RESIDUAL
-                            if ratio < dti_threshold:
+                            if ratio < _dti_threshold(is_employee, is_pensioner):
                                 flag1 = True
                             else:
                                 reasons = reasons + "DTI_HIGH;"
@@ -106,17 +124,7 @@ def evaluate(income,
     if savings_balance is not None and income is not None and savings_balance >= income * SAVINGS_DISCOUNT_RATIO:
         flag2 = True
 
-    if late_payments and late_payments > 0:
-        if late_payments <= 2:
-            score_late = 1.0
-        elif late_payments <= 5:
-            score_late = 0.6
-        elif late_payments <= 10:
-            score_late = 0.3
-        else:
-            score_late = 0.0
-    else:
-        score_late = 1.0
+    score_late = _late_score(late_payments)
 
 
     if is_employee == True and is_pensioner == False:
@@ -178,11 +186,7 @@ def evaluate(income,
             reasons = reasons + "AMOUNT_BELOW_MIN;"
 
     # Concatenate the parts back into a single human-readable string using a space separator.
-    msg = ""
-    for i in range(len(reasons.split(";"))):
-        part = reasons.split(";")[i]
-        if part != "":
-            msg = msg + part + " "
+    msg = _format_reasons(reasons.split(";"))
 
     # Keep this print for compliance audit logging.
     print("[loan-eval] member evaluated at " + str(datetime.now()))
