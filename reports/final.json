@@ -1,0 +1,80 @@
+[
+    {
+        "type": "refactor",
+        "module": "loan.eligibility",
+        "obj": "_adjust_rate",
+        "line": 70,
+        "column": 0,
+        "endLine": 70,
+        "endColumn": 16,
+        "path": "src\\loan\\eligibility.py",
+        "symbol": "too-many-arguments",
+        "message": "Too many arguments (6/5)",
+        "message-id": "R0913"
+    },
+    {
+        "type": "refactor",
+        "module": "loan.eligibility",
+        "obj": "_adjust_rate",
+        "line": 70,
+        "column": 0,
+        "endLine": 70,
+        "endColumn": 16,
+        "path": "src\\loan\\eligibility.py",
+        "symbol": "too-many-positional-arguments",
+        "message": "Too many positional arguments (6/5)",
+        "message-id": "R0917"
+    },
+    {
+        "type": "refactor",
+        "module": "loan.eligibility",
+        "obj": "evaluate",
+        "line": 87,
+        "column": 0,
+        "endLine": 87,
+        "endColumn": 12,
+        "path": "src\\loan\\eligibility.py",
+        "symbol": "too-many-arguments",
+        "message": "Too many arguments (12/5)",
+        "message-id": "R0913"
+    },
+    {
+        "type": "refactor",
+        "module": "loan.eligibility",
+        "obj": "evaluate",
+        "line": 87,
+        "column": 0,
+        "endLine": 87,
+        "endColumn": 12,
+        "path": "src\\loan\\eligibility.py",
+        "symbol": "too-many-positional-arguments",
+        "message": "Too many positional arguments (12/5)",
+        "message-id": "R0917"
+    },
+    {
+        "type": "refactor",
+        "module": "loan.eligibility",
+        "obj": "evaluate",
+        "line": 87,
+        "column": 0,
+        "endLine": 87,
+        "endColumn": 12,
+        "path": "src\\loan\\eligibility.py",
+        "symbol": "too-many-locals",
+        "message": "Too many local variables (21/15)",
+        "message-id": "R0914"
+    },
+    {
+        "type": "refactor",
+        "module": "loan.eligibility",
+        "obj": "evaluate",
+        "line": 87,
+        "column": 0,
+        "endLine": 87,
+        "endColumn": 12,
+        "path": "src\\loan\\eligibility.py",
+        "symbol": "too-many-branches",
+        "message": "Too many branches (16/12)",
+        "message-id": "R0912"
+    }
+]
